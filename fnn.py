@@ -10,6 +10,7 @@ import time
 
 class fnn:
     def __init__(self):
+        #function parameters
         self.x0 = None
         self.x1 = None
         self.x2 = None
@@ -18,30 +19,30 @@ class fnn:
         self.beta = None
         self.gamma = None
         self.rand = None
+        #model parmeters
         self.x = None
         self.y = None
         self.X = None
         self.Y = None
         self.x_scaler = StandardScaler()
         self.y_scaler = StandardScaler()
-        self.X_scaled = None
-        self.y_scaled = None
         self.X_train = None
         self.X_test = None
         self.y_train = None
         self.y_test = None
-        self.model = None
-        self.history = None
-        self.mae = None
         self.X_all_scaled = None
         self.y_pred = None
+        #model
+        self.model = None
+        #metrics
+        self.history = None
+        self.mae = None
         self.loss = None
-
     
     def set_parameters(self, start, end, step, x0, x1, x2, x3, alpha, beta, gamma, noise=1.0):
-        np.random.seed(40)
-        tf.random.set_seed(40)
-        rndm.seed(40)
+        np.random.seed(42)
+        tf.random.set_seed(42)
+        rndm.seed(42)
 
         self.x = np.arange(start, end, step)
         # x0 = random.randint(-5, 5)
@@ -60,28 +61,17 @@ class fnn:
     def define_function(self):
         self.y = self.alpha * self.x0 * np.sin(self.x) + self.beta * self.x2 * self.x3 * self.x*self.x + self.gamma * np.abs(self.x0 - self.x2) + self.rand
 
+        #todo
         self.X = self.x.reshape(-1, 1)
         self.Y = self.y.reshape(-1, 1)
     
     def scale_data(self):
-        # skalowanie na danych treningowych
-        # self.X_scaled = self.x_scaler.fit_transform(self.X)
-        # self.y_scaled = self.y_scaler.fit_transform(self.Y)
-
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
-
-
-
-        # self.X_scaled = self.x_scaler.fit_transform(self.X_train)
-        # self.y_scaled = self.y_scaler.fit_transform(self.y_train)
 
         self.X_train = self.x_scaler.fit_transform(self.X_train.reshape(-1, 1))
         self.X_test = self.x_scaler.transform(self.X_test.reshape(-1, 1))
         self.y_train = self.y_scaler.fit_transform(self.y_train.reshape(-1, 1))
         self.y_test = self.y_scaler.transform(self.y_test.reshape(-1, 1))
-
-        # print(f"x_train rozmiar {len(X_train)} {X_train[:50]}")
-        # print(f"x_test rozmiar {len(X_test)} {X_test[:50]}")
 
 
     def create_model(self, epochs=100, batch_size=64):
@@ -96,9 +86,16 @@ class fnn:
 
         self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=f'./logs_batch_{batch_size}', profile_batch='1,10')
 
-        self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0)
+        log_dir = "./logs"
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            log_dir=log_dir,
+            histogram_freq=1,
+            profile_batch='10,30'
+        )
+        
+        self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0, callbacks=[tensorboard_callback])
+
 
         self.loss, self.mae = self.model.evaluate(self.X_test, self.y_test, verbose=0)
         # print(f"Test MAE: {self.mae:.4f}")
@@ -108,13 +105,10 @@ class fnn:
         # self.y_pred = self.y_scaler.inverse_transform(self.y_pred.reshape(-1, 1))
     
     def show_stats(self):
-
         mae = mean_absolute_error(self.y_test, self.model.predict(self.X_test))
         mse = mean_squared_error(self.y_test, self.model.predict(self.X_test))
         r2 = r2_score(self.y_test, self.model.predict(self.X_test))
-        # rmse = np.sqrt(mse)
         rmse = root_mean_squared_error(self.y_test, self.model.predict(self.X_test))
-
 
         print(f"MAE: {mae:.4f}")
         print(f"MSE: {mse:.4f}")
@@ -130,7 +124,9 @@ class fnn:
         plt.ylabel("y")
         plt.legend()
         plt.grid(True)
-        plt.show()
+        # plt.show()
+        plt.savefig('plot_results.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
     def plot_training_test(self):
         # X_train_scaled = self.x_scaler.fit_transform(self.X_train)
@@ -143,7 +139,8 @@ class fnn:
         plt.ylabel("y")
         plt.legend()
         plt.grid(True)
-        plt.show()
+        plt.savefig('plot_training_test.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
     def plot_loss(self):
         loss = self.history.history['loss']
@@ -174,9 +171,9 @@ class fnn:
         plt.grid(True)
 
         plt.tight_layout()
-        plt.show()
+        plt.savefig('plot_loss.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
-# ????????????????????????????????????????????????????????????
     def plot_test_metrics(self):
         y_pred = self.model.predict(self.X_test)
         plt.figure(figsize=(10, 5))
@@ -187,7 +184,8 @@ class fnn:
         plt.ylabel("Wartość")
         plt.legend()
         plt.grid(True)
-        plt.show()
+        plt.savefig('plot_test_metrics.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
         print(f"MAE: {mean_absolute_error(self.y_test, y_pred):.4f}")
         print(f"MSE: {mean_squared_error(self.y_test, y_pred):.4f}")
@@ -207,19 +205,47 @@ class fnn:
         plt.legend()
         plt.grid(True)
         plt.axis('equal')
-        plt.show()
+        plt.savefig('plot_pred_vs_real.png', dpi=300, bbox_inches='tight')
+        plt.close()
 
         print(np.corrcoef(self.y_test.flatten(), y_pred.flatten()))
 
+    def generate_all_reports(self, model_trained=False, epochs=100, batch_size=64):
+        if not model_trained:
+            self.create_model(epochs=epochs, batch_size=batch_size)
 
-def plot_speedup(parameters, times, parameter_name=''):
+        import os
+        os.makedirs("reports", exist_ok=True)
+
+        y_pred = self.model.predict(self.X_test)
+        mae = mean_absolute_error(self.y_test, y_pred)
+        mse = mean_squared_error(self.y_test, y_pred)
+        rmse = root_mean_squared_error(self.y_test, y_pred)
+        r2 = r2_score(self.y_test, y_pred)
+
+        with open("reports/test_metrics.txt", "w") as f:
+            f.write(f"MAE: {mae:.4f}\n")
+            f.write(f"MSE: {mse:.4f}\n")
+            f.write(f"RMSE: {rmse:.4f}\n")
+            f.write(f"R² score: {r2:.4f}\n")
+
+        self.plot_results()
+        self.plot_test_metrics()
+        self.plot_pred_vs_real()
+        self.plot_loss()
+        self.plot_training_test()
+
+
+
+def plot_speedup(parameters, times, parameter_name='', name=" "):
     plt.figure(figsize=(10, 5))
     plt.plot(parameters, times, marker='o')
     plt.xlabel(f'{parameter_name}')
     plt.ylabel('Czas wykonania (s)')
     plt.title(f'Wykres czasu wykonywania w zależności od {parameter_name}')
     plt.grid(True)
-    plt.show()
+    plt.savefig(f'{name}_speedup.png', dpi=300, bbox_inches='tight')
+    plt.close()
 
 def create_fnn():
     my_fnn = fnn()
@@ -252,7 +278,7 @@ def create_fnn_with_batch_size(batch_size):
 
 def test_batch_time(batch_size):
     my_fnn = fnn()
-    my_fnn.set_parameters(-20, 20, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
+    my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
     my_fnn.define_function()
     my_fnn.scale_data()
     start_time = time.time()
@@ -280,19 +306,33 @@ def test_noise_time(noise):
 
 if __name__ == "__main__":
 
-    batches = [2, 4, 8, 16, 32, 64, 128]
+    batches = [2, 4, 8, 16, 32, 64, 128, 256, 512]
     batch_times = []
     noise = [1.0, 2.0, 3.0, 4.0, 5.0]
     noise_times = []
 
-    my_fnn = fnn()
-    my_fnn.set_parameters(-20, 20, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
-    my_fnn.define_function()
-    my_fnn.scale_data()
-    my_fnn.create_model()
+    # my_fnn = fnn()
+    # my_fnn.set_parameters(-20, 20, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
+    # my_fnn.define_function()
+    # my_fnn.scale_data()
+    # my_fnn.create_model()
+    import ctypes
+    ctypes.CDLL('libcupti.so')
+    print("libcupti loaded successfully")
+
+    print("wersja tensorflow:")
+    print(tf.__version__)
+
+    print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
     print("Available devices:")
     for device in tf.config.list_physical_devices():
         print(device)
+
+    device_name = tf.test.gpu_device_name()
+    if not device_name:
+        raise SystemError('GPU device not found')
+    print('Found GPU at: {}'.format(device_name))
 
     gpus = tf.config.list_physical_devices('GPU')
 
@@ -301,37 +341,51 @@ if __name__ == "__main__":
             print("Using GPU for training...")
             for i in batches:
                 print(f"Batch size: {i}")
-                # batch_times.append(test_batch_time(i))
-    #             my_fnn.show_stats()
+                batch_times.append(test_batch_time(i))
+                # my_fnn.show_stats()
                 # my_fnn.plot_results()
-    #             # my_fnn.plot_training_test()
-    #             # my_fnn.plot_loss()
-    #             my_fnn.plot_pred_vs_real()
+                # # my_fnn.plot_training_test()
+                # # my_fnn.plot_loss()
+                # my_fnn.plot_pred_vs_real()
+            plot_speedup(batches, batch_times, parameter_name='batch size', name="GPU")
 
-    print("Using CPU for training...")
-    for i in batches:
-        print(f"Batch size: {i}")
-        # batch_times.append(test_batch_time(i))
-        my_fnn.show_stats()
-        my_fnn.plot_results()
-        my_fnn.plot_training_test()
-        my_fnn.plot_loss()
-        my_fnn.plot_pred_vs_real()
 
-    # plot_speedup(batches, batch_times, parameter_name='batch size')
-
-    for i in noise:
-            print(f"Noise: {i}")
-            noise_times.append(test_noise_time(i))
             # my_fnn.show_stats()
             # my_fnn.plot_results()
-            # my_fnn.plot_training_test()
-            # my_fnn.plot_loss()
+            # # my_fnn.plot_training_test()
+            # # my_fnn.plot_loss()
             # my_fnn.plot_pred_vs_real()
+            # my_fnn.plot_test_metrics()
 
-    plot_speedup(noise, noise_times, parameter_name='noise')
+
+    batch_times = []
+    with tf.device('/CPU:0'):
+        print("Using CPU for training...")
+        for i in batches:
+            print(f"Batch size: {i}")
+            batch_times.append(test_batch_time(i))
+    #         # my_fnn.show_stats()
+    #         # my_fnn.plot_results()
+    #         # my_fnn.plot_training_test()
+    #         # my_fnn.plot_loss()
+    #         # my_fnn.plot_pred_vs_real()
+
+        plot_speedup(batches, batch_times, parameter_name='batch size', name="CPU")
+
+
+    # for i in noise:
+    #         print(f"Noise: {i}")
+    #         noise_times.append(test_noise_time(i))
+    #         # my_fnn.show_stats()
+    #         # my_fnn.plot_results()
+    #         # my_fnn.plot_training_test()
+    #         # my_fnn.plot_loss()
+    #         # my_fnn.plot_pred_vs_real()
+
+    # plot_speedup(noise, noise_times, parameter_name='noise')
 # dwa wykresy szybkosci wykonania szybkosci wykonywania od batchsize i od wielkosci szumu
 # wykresy metryk na testowym
 #  na prawdziwych danych
 #  uruchomienie na gpu
 # luzne notatki do pracy
+# *fnn dziala lepiej na cpu niz na gpu ze wzgledu na czas przerzucenia danych na gpu, czego nie trzeba robic na cpu*
