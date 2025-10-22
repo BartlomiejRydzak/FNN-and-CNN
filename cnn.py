@@ -8,6 +8,7 @@ import time
 from sklearn.metrics import confusion_matrix, classification_report
 import seaborn as sns
 import os
+import random as rndm
 
 # print(tf.__version__)
 os.makedirs("cnn", exist_ok=True)
@@ -15,8 +16,12 @@ os.makedirs("cnn", exist_ok=True)
 class cnn:
     def __init__(self):
         self.model = None
+        np.random.seed(42)
+        tf.random.set_seed(42)
+        rndm.seed(42)
 
     def train(self, name="cnn_cats_dogs.h5", batch_size=32):
+        # tf.keras.backend.clear_session()
         train_datagen = ImageDataGenerator(
                 rescale=1./255,
                 shear_range=0.2,
@@ -27,7 +32,9 @@ class cnn:
                 "dataset/training_set",
                 target_size=(64, 64),
                 batch_size=batch_size,
-                class_mode='binary')
+                class_mode='binary',
+                seed=42,
+                shuffle=True)
 
         test_datagen = ImageDataGenerator(rescale=1./255)
 
@@ -35,7 +42,9 @@ class cnn:
                 "dataset/test_set",
                 target_size=(64, 64),
                 batch_size=batch_size,
-                class_mode='binary')
+                class_mode='binary',
+                shuffle=False,
+                seed=42)
 
         cnn = tf.keras.models.Sequential()
 

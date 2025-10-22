@@ -39,7 +39,8 @@ class fnn:
         self.mae = None
         self.loss = None
     
-    def set_parameters(self, start, end, step, x0, x1, x2, x3, alpha, beta, gamma, noise=1.0):
+    # zmiana noise na 3.0 z 1.0
+    def set_parameters(self, start, end, step, x0, x1, x2, x3, alpha, beta, gamma, noise=3.0):
         np.random.seed(42)
         tf.random.set_seed(42)
         rndm.seed(42)
@@ -73,13 +74,22 @@ class fnn:
         self.y_train = self.y_scaler.fit_transform(self.y_train.reshape(-1, 1))
         self.y_test = self.y_scaler.transform(self.y_test.reshape(-1, 1))
 
+    # zmiana batch_size na 128 z 32
+    def create_model(self, epochs=100, batch_size=128):
+        # pierwsza wersja
+        # self.model = tf.keras.Sequential([
+        #     tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
+        #     tf.keras.layers.Dense(80, activation='relu'),
+        #     tf.keras.layers.Dense(20, activation='relu'),
+        #     tf.keras.layers.Dense(20, activation='relu'),
+        #     tf.keras.layers.Dense(1)
+        # ])
 
-    def create_model(self, epochs=100, batch_size=32):
-
+        # wersja porownawcza
         self.model = tf.keras.Sequential([
-            tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
-            tf.keras.layers.Dense(80, activation='relu'),
-            tf.keras.layers.Dense(20, activation='relu'),
+            tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
+            tf.keras.layers.Dense(400, activation='relu'),
+            tf.keras.layers.Dense(100, activation='relu'),
             tf.keras.layers.Dense(20, activation='relu'),
             tf.keras.layers.Dense(1)
         ])
@@ -324,14 +334,14 @@ def test_batch_time(batch_size, device_name="CPU"):
     print(f"Time taken for batch size {batch_size}: {time_taken:.4f} seconds")
     
     # Zapis raportów z oznaczeniem urządzenia
-    my_fnn.generate_all_reports(folder_name=f"batch_{batch_size}", device_name=device_name)
+    my_fnn.generate_all_reports(folder_name=f"#2batch_{batch_size}", device_name=device_name)
     
     return time_taken
 
 
 def test_noise_time(noise, device_name="CPU"):
     my_fnn = fnn()
-    my_fnn.set_parameters(-20, 20, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+    my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
     my_fnn.define_function()
     my_fnn.scale_data()
     start_time = time.time()
@@ -341,14 +351,14 @@ def test_noise_time(noise, device_name="CPU"):
     print(f"Time taken for noise {noise}: {time_taken:.4f} seconds")
     
     # Raporty z device_name
-    my_fnn.generate_all_reports(folder_name=f"noise_{noise}", device_name=device_name)
+    my_fnn.generate_all_reports(folder_name=f"#2noise_{noise}", device_name=device_name)
     
     return time_taken
 
 
 def test_noise_accuracy(noise, device_name="CPU"):
     my_fnn = fnn()
-    my_fnn.set_parameters(-20, 20, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+    my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
     my_fnn.define_function()
     my_fnn.scale_data()
 
@@ -369,7 +379,7 @@ def test_noise_accuracy(noise, device_name="CPU"):
     print(f"R² score: {r2:.4f}")
 
     # Raporty z device_name
-    my_fnn.generate_all_reports(folder_name=f"noise_{noise}", device_name=device_name)
+    my_fnn.generate_all_reports(folder_name=f"#2noise_{noise}", device_name=device_name)
 
     return r2
 
@@ -397,7 +407,7 @@ def test_batch_accuracy(batch_size, device_name="CPU"):
     print(f"R² score: {r2:.4f}")
 
     # Raporty z device_name
-    my_fnn.generate_all_reports(folder_name=f"batch_{batch_size}", device_name=device_name)
+    my_fnn.generate_all_reports(folder_name=f"#2batch_{batch_size}", device_name=device_name)
 
     return r2
 
@@ -544,8 +554,12 @@ if __name__ == "__main__":
     # =============================
     # KONFIGURACJA PARAMETRÓW
     # =============================
-    batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+    # batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    # noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+    # noise_levels = [6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+
+    batches = [128]
+    noise_levels = [3.0]
 
     print("Wersja TensorFlow:", tf.__version__)
     print("Dostępne urządzenia:")
@@ -604,7 +618,7 @@ if __name__ == "__main__":
         batches, cpu_batch_times, gpu_batch_times,
         xlabel='Batch size', ylabel='Czas trenowania [s]',
         title='Porównanie czasu trenowania (CPU vs GPU) - batch size',
-        filename='compare_time_batch.png'
+        filename='compare_time_batch_#2.png'
     )
 
     # 2. Dokładność (R²) od batch size
@@ -612,7 +626,7 @@ if __name__ == "__main__":
         batches, cpu_batch_acc, gpu_batch_acc,
         xlabel='Batch size', ylabel='Dokładność (R²)',
         title='Porównanie dokładności (CPU vs GPU) - batch size',
-        filename='compare_accuracy_batch.png'
+        filename='compare_accuracy_batch_#2.png'
     )
 
     # 3. Czas trenowania od noise
@@ -620,7 +634,7 @@ if __name__ == "__main__":
         noise_levels, cpu_noise_times, gpu_noise_times,
         xlabel='Poziom szumu', ylabel='Czas trenowania [s]',
         title='Porównanie czasu trenowania (CPU vs GPU) - noise',
-        filename='compare_time_noise.png'
+        filename='compare_time_noise_#2.png'
     )
 
     # 4. Dokładność (R²) od noise
@@ -628,7 +642,7 @@ if __name__ == "__main__":
         noise_levels, cpu_noise_acc, gpu_noise_acc,
         xlabel='Poziom szumu', ylabel='Dokładność (R²)',
         title='Porównanie dokładności (CPU vs GPU) - noise',
-        filename='compare_accuracy_noise.png'
+        filename='compare_accuracy_noise_#2.png'
     )
 
     print("\n✅ Wykresy zapisane w folderze reports/plots/")
