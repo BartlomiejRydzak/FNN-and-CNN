@@ -40,7 +40,7 @@ class fnn:
         self.loss = None
     
     # zmiana noise na 3.0 z 1.0
-    def set_parameters(self, start, end, step, x0, x1, x2, x3, alpha, beta, gamma, noise=3.0):
+    def set_parameters(self, start, end, step, x0, x1, x2, x3, alpha, beta, gamma, noise=1.0):
         np.random.seed(42)
         tf.random.set_seed(42)
         rndm.seed(42)
@@ -75,24 +75,52 @@ class fnn:
         self.y_test = self.y_scaler.transform(self.y_test.reshape(-1, 1))
 
     # zmiana batch_size na 128 z 32
-    def create_model(self, epochs=100, batch_size=128):
+    def create_model(self, epochs=100, batch_size=32,  architecture="small"):
         # pierwsza wersja
-        # self.model = tf.keras.Sequential([
-        #     tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
-        #     tf.keras.layers.Dense(80, activation='relu'),
-        #     tf.keras.layers.Dense(20, activation='relu'),
-        #     tf.keras.layers.Dense(20, activation='relu'),
-        #     tf.keras.layers.Dense(1)
-        # ])
+        if architecture == "small":
+            self.model = tf.keras.Sequential([
+                tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
+                tf.keras.layers.Dense(80, activation='relu'),
+                tf.keras.layers.Dense(20, activation='relu'),
+                tf.keras.layers.Dense(20, activation='relu'),
+                tf.keras.layers.Dense(1)
+            ])
 
         # wersja porownawcza
-        self.model = tf.keras.Sequential([
-            tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
-            tf.keras.layers.Dense(400, activation='relu'),
-            tf.keras.layers.Dense(100, activation='relu'),
-            tf.keras.layers.Dense(20, activation='relu'),
-            tf.keras.layers.Dense(1)
-        ])
+        elif architecture == "large":
+            self.model = tf.keras.Sequential([
+                tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
+                tf.keras.layers.Dense(400, activation='relu'),
+                tf.keras.layers.Dense(100, activation='relu'),
+                tf.keras.layers.Dense(20, activation='relu'),
+                tf.keras.layers.Dense(1)
+            ])
+        elif architecture == "many_layers":
+            self.model = tf.keras.Sequential([
+                tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
+                tf.keras.layers.Dense(800, activation='relu'),
+                tf.keras.layers.Dense(600, activation='relu'),
+                tf.keras.layers.Dense(500, activation='relu'),
+                tf.keras.layers.Dense(400, activation='relu'),
+                tf.keras.layers.Dense(300, activation='relu'),
+                tf.keras.layers.Dense(200, activation='relu'),
+                tf.keras.layers.Dense(100, activation='relu'),
+                tf.keras.layers.Dense(50, activation='relu'),
+                tf.keras.layers.Dense(1)
+            ])
+        # 100_000 neuronow -> brak pamieci ram na pomieszczenie ich
+        elif architecture == "many_neurons":
+            self.model = tf.keras.Sequential([
+                # bardzo dlugi czas wykonywania
+                tf.keras.layers.Dense(10_000, activation='relu', input_shape=(1,)),
+                tf.keras.layers.Dense(5_000, activation='relu'),
+                tf.keras.layers.Dense(1000, activation='relu'),
+                tf.keras.layers.Dense(100, activation='relu'),
+                tf.keras.layers.Dense(50, activation='relu'),
+                tf.keras.layers.Dense(1)
+            ])
+        else:
+            raise ValueError(f"Nieznany typ architektury: {architecture}")
 
         self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 
@@ -411,7 +439,258 @@ def test_batch_accuracy(batch_size, device_name="CPU"):
 
     return r2
 
+def test_series_by_noise(noise_values, batch_sizes, device_name="CPU"):
+    """
+    Dla każdej wartości noise testuje różne batch_size
+    i rysuje osobne wykresy dla każdej stałej wartości noise.
+    """
+    os.makedirs(f"reports/compare/{device_name}", exist_ok=True)
 
+    for noise in noise_values:
+        times = []
+        accuracies = []
+
+        for batch_size in batch_sizes:
+            print(f"\n[{device_name}] noise={noise}, batch_size={batch_size}")
+
+            # Przygotowanie modelu
+            my_fnn = fnn()
+            my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+            my_fnn.define_function()
+            my_fnn.scale_data()
+
+            start_time = time.time()
+            my_fnn.create_model(batch_size=batch_size)
+            end_time = time.time()
+
+            y_pred = my_fnn.model.predict(my_fnn.X_test)
+            r2 = r2_score(my_fnn.y_test, y_pred)
+            elapsed = end_time - start_time
+
+            times.append(elapsed)
+            accuracies.append(r2)
+
+            print(f"⏱ Czas: {elapsed:.3f}s | R²: {r2:.4f}")
+
+        # --- Rysowanie wykresu czasu ---
+        plt.figure(figsize=(10, 5))
+        plt.plot(batch_sizes, times, marker='o', linewidth=2, color='royalblue')
+        plt.xlabel('Batch size')
+        plt.ylabel('Czas trenowania [s]')
+        plt.title(f'{device_name} — Czas trenowania vs batch size (noise={noise})')
+        plt.grid(True)
+        plt.savefig(f'reports/compare/{device_name}/time_vs_batch_noise_{noise}.png',
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+        # --- Rysowanie wykresu dokładności ---
+        plt.figure(figsize=(10, 5))
+        plt.plot(batch_sizes, accuracies, marker='s', linewidth=2, color='seagreen')
+        plt.xlabel('Batch size')
+        plt.ylabel('Dokładność (R²)')
+        plt.title(f'{device_name} — Dokładność vs batch size (noise={noise})')
+        plt.grid(True)
+        plt.savefig(f'reports/compare/{device_name}/accuracy_vs_batch_noise_{noise}.png',
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"📈 Zapisano wykresy dla noise={noise} w reports/compare/")
+
+
+def test_architectures(batches, noises, device_name="CPU"):
+    """
+    Zwraca dokładności R² i czas trenowania dla różnych batch_size, architektur i poziomów szumu.
+    Zwraca słownik:
+    results = {
+        'small': {noise1: {'r2': [...], 'time': [...]}, noise2: {...}, ...},
+        'large': {noise1: {...}, ...}
+    }
+    """
+
+    # zmiana small i large na many_layers i many_neurons
+    results = {"many_layers": {}, "many_neurons": {}}
+
+    for arch in ["many_layers", "many_neurons"]:
+        for noise in noises:
+            r2_list = []
+            time_list = []
+            for batch_size in batches:
+                print(f"\n[{device_name}] Architektura: {arch}, batch_size={batch_size}, noise={noise}")
+
+                my_fnn = fnn()
+                my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+                my_fnn.define_function()
+                my_fnn.scale_data()
+
+                start_time = time.time()
+                my_fnn.create_model(batch_size=batch_size, architecture=arch)
+                end_time = time.time()
+
+                y_pred = my_fnn.model.predict(my_fnn.X_test)
+                r2 = r2_score(my_fnn.y_test, y_pred)
+
+                elapsed = end_time - start_time
+                r2_list.append(r2)
+                time_list.append(elapsed)
+
+                print(f"⏱ Czas: {elapsed:.2f}s | R²={r2:.4f}")
+
+            results[arch][noise] = {"r2": r2_list, "time": time_list}
+
+    return results
+
+def plot_comparison_multi(x_values, results_dict, xlabel="Batch size", title_prefix="", filename_prefix=""):
+    """
+    Rysuje dwa wykresy dla dokładności (R²) i czasu trenowania dla wielu serii na jednym zbiorze danych.
+    results_dict = {
+        'CPU-small': {'r2': [...], 'time': [...]},
+        'CPU-large': {...},
+        'GPU-small': {...},
+        'GPU-large': {...}
+    }
+    """
+    os.makedirs("reports/architectures2", exist_ok=True)
+
+    # --- Wykres dokładności ---
+    plt.figure(figsize=(10, 6))
+    for label, data in results_dict.items():
+        plt.plot(x_values, data['r2'], marker='o', linewidth=2, label=label)
+    plt.xlabel(xlabel)
+    plt.ylabel("Dokładność (R²)")
+    plt.title(f"{title_prefix} - Dokładność")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"reports/architectures2/{filename_prefix}_accuracy.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # --- Wykres czasu ---
+    plt.figure(figsize=(10, 6))
+    for label, data in results_dict.items():
+        plt.plot(x_values, data['time'], marker='s', linewidth=2, label=label)
+    plt.xlabel(xlabel)
+    plt.ylabel("Czas trenowania [s]")
+    plt.title(f"{title_prefix} - Czas trenowania")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"reports/architectures2/{filename_prefix}_time.png", dpi=300, bbox_inches='tight')
+    plt.close()
+
+def plot_individual_results(x_values, results_dict, xlabel="Batch size", title_prefix="", filename_prefix=""):
+    """
+    Tworzy osobne wykresy dla każdej kombinacji urządzenie+architektura (np. CPU-small).
+    results_dict = {
+        'CPU-small': {'r2': [...], 'time': [...]},
+        'CPU-large': {...},
+        'GPU-small': {...},
+        'GPU-large': {...}
+    }
+    """
+    os.makedirs("reports/architectures2/individual", exist_ok=True)
+
+    for label, data in results_dict.items():
+        # --- Dokładność ---
+        plt.figure(figsize=(8, 5))
+        plt.plot(x_values, data['r2'], marker='o', linewidth=2, color='seagreen')
+        plt.xlabel(xlabel)
+        plt.ylabel("Dokładność (R²)")
+        plt.title(f"{title_prefix} — {label} — Dokładność")
+        plt.grid(True)
+        plt.savefig(f"reports/architectures2/individual/{filename_prefix}_{label}_accuracy.png",
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+        # --- Czas ---
+        plt.figure(figsize=(8, 5))
+        plt.plot(x_values, data['time'], marker='s', linewidth=2, color='royalblue')
+        plt.xlabel(xlabel)
+        plt.ylabel("Czas trenowania [s]")
+        plt.title(f"{title_prefix} — {label} — Czas trenowania")
+        plt.grid(True)
+        plt.savefig(f"reports/architectures2/individual/{filename_prefix}_{label}_time.png",
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+def test_series_by_noise_combined(noise_values, batch_sizes):
+    """
+    Dla każdej wartości noise testuje różne batch_size na CPU i GPU,
+    a następnie rysuje wspólny wykres CPU vs GPU.
+    """
+    os.makedirs("reports/compare/combined", exist_ok=True)
+
+    for noise in noise_values:
+        cpu_times, cpu_r2 = [], []
+        gpu_times, gpu_r2 = [], []
+
+        # --- CPU ---
+        with tf.device('/CPU:0'):
+            for batch_size in batch_sizes:
+                print(f"[CPU] noise={noise}, batch_size={batch_size}")
+                my_fnn = fnn()
+                my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+                my_fnn.define_function()
+                my_fnn.scale_data()
+
+                start_time = time.time()
+                my_fnn.create_model(batch_size=batch_size)
+                end_time = time.time()
+
+                y_pred = my_fnn.model.predict(my_fnn.X_test)
+                r2 = r2_score(my_fnn.y_test, y_pred)
+
+                cpu_times.append(end_time - start_time)
+                cpu_r2.append(r2)
+
+        # --- GPU ---
+        if tf.config.list_physical_devices('GPU'):
+            with tf.device('/GPU:0'):
+                for batch_size in batch_sizes:
+                    print(f"[GPU] noise={noise}, batch_size={batch_size}")
+                    my_fnn = fnn()
+                    my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4, noise=noise)
+                    my_fnn.define_function()
+                    my_fnn.scale_data()
+
+                    start_time = time.time()
+                    my_fnn.create_model(batch_size=batch_size)
+                    end_time = time.time()
+
+                    y_pred = my_fnn.model.predict(my_fnn.X_test)
+                    r2 = r2_score(my_fnn.y_test, y_pred)
+
+                    gpu_times.append(end_time - start_time)
+                    gpu_r2.append(r2)
+        else:
+            print("⚠️ Brak GPU – pomijam część GPU.")
+            gpu_times = [None] * len(batch_sizes)
+            gpu_r2 = [None] * len(batch_sizes)
+
+        # --- Wspólny wykres czasu ---
+        plt.figure(figsize=(10, 5))
+        plt.plot(batch_sizes, cpu_times, marker='o', label='CPU', linewidth=2)
+        plt.plot(batch_sizes, gpu_times, marker='s', label='GPU', linewidth=2)
+        plt.xlabel('Batch size')
+        plt.ylabel('Czas trenowania [s]')
+        plt.title(f'Czas trenowania vs batch size (noise={noise})')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"reports/compare/combined/time_vs_batch_noise_{noise}.png",
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+        # --- Wspólny wykres dokładności ---
+        plt.figure(figsize=(10, 5))
+        plt.plot(batch_sizes, cpu_r2, marker='o', label='CPU', linewidth=2)
+        plt.plot(batch_sizes, gpu_r2, marker='s', label='GPU', linewidth=2)
+        plt.xlabel('Batch size')
+        plt.ylabel('Dokładność (R²)')
+        plt.title(f'Dokładność vs batch size (noise={noise})')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f"reports/compare/combined/accuracy_vs_batch_noise_{noise}.png",
+                    dpi=300, bbox_inches='tight')
+        plt.close()
+
+        print(f"✅ Zapisano wykresy dla noise={noise} w reports/compare/combined/")
 
 
 
@@ -554,12 +833,15 @@ if __name__ == "__main__":
     # =============================
     # KONFIGURACJA PARAMETRÓW
     # =============================
-    # batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    # noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0]
+    batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    noise_levels = [1.0, 6.0]
+    # batches = [1024]
+    # noise_levels = [5.0]
+    # noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
     # noise_levels = [6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
 
-    batches = [128]
-    noise_levels = [3.0]
+    # batches = [128]
+    # noise_levels = [3.0]
 
     print("Wersja TensorFlow:", tf.__version__)
     print("Dostępne urządzenia:")
@@ -579,13 +861,21 @@ if __name__ == "__main__":
     cpu_batch_times, cpu_batch_acc = [], []
     cpu_noise_times, cpu_noise_acc = [], []
 
+    # =============================
+    # PORÓWNANIE ARCHITEKTUR
+    # =============================
+    cpu_results, gpu_results = None, None
+
     with tf.device('/CPU:0'):
-        for b in batches:
-            cpu_batch_times.append(test_batch_time(b, device_name="CPU"))
-            cpu_batch_acc.append(test_batch_accuracy(b, device_name="CPU"))
-        for n in noise_levels:
-            cpu_noise_times.append(test_noise_time(n, device_name="CPU"))
-            cpu_noise_acc.append(test_noise_accuracy(n, device_name="CPU"))
+        # for b in batches:
+        #     cpu_batch_times.append(test_batch_time(b, device_name="CPU"))
+        #     cpu_batch_acc.append(test_batch_accuracy(b, device_name="CPU"))
+        # for n in noise_levels:
+        #     cpu_noise_times.append(test_noise_time(n, device_name="CPU"))
+        #     cpu_noise_acc.append(test_noise_accuracy(n, device_name="CPU"))
+        # test_series_by_noise(noise_levels, batches, 'CPU')
+        cpu_results = test_architectures(batches, noises=noise_levels, device_name="CPU")
+        # pass
 
     # =============================
     # TESTY GPU (jeśli dostępne)
@@ -596,58 +886,100 @@ if __name__ == "__main__":
 
     if has_gpu:
         with tf.device('/GPU:0'):
-            for b in batches:
-                gpu_batch_times.append(test_batch_time(b, device_name="GPU"))
-                gpu_batch_acc.append(test_batch_accuracy(b, device_name="GPU"))
-            for n in noise_levels:
-                gpu_noise_times.append(test_noise_time(n, device_name="GPU"))
-                gpu_noise_acc.append(test_noise_accuracy(n, device_name="GPU"))
+            # for b in batches:
+            #     gpu_batch_times.append(test_batch_time(b, device_name="GPU"))
+            #     gpu_batch_acc.append(test_batch_accuracy(b, device_name="GPU"))
+            # for n in noise_levels:
+            #     gpu_noise_times.append(test_noise_time(n, device_name="GPU"))
+            #     gpu_noise_acc.append(test_noise_accuracy(n, device_name="GPU"))
+            # test_series_by_noise(noise_levels, batches, 'GPU')
+            gpu_results = test_architectures(batches, noises=noise_levels, device_name="GPU")
+            # pass
+
     else:
         gpu_batch_times = [None] * len(batches)
         gpu_batch_acc = [None] * len(batches)
         gpu_noise_times = [None] * len(noise_levels)
         gpu_noise_acc = [None] * len(noise_levels)
+        gpu_results = {
+            "many_layers": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
+            "many_neurons": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
+        }
 
-    # =============================
-    # WYKRESY PORÓWNAWCZE
-    # =============================
-    print("\nGenerowanie wykresów porównawczych...")
 
-    # 1. Czas trenowania od batch size
-    plot_comparison(
-        batches, cpu_batch_times, gpu_batch_times,
-        xlabel='Batch size', ylabel='Czas trenowania [s]',
-        title='Porównanie czasu trenowania (CPU vs GPU) - batch size',
-        filename='compare_time_batch_#2.png'
-    )
+    # # =============================
+    # # WYKRESY PORÓWNAWCZE
+    # # =============================
+    # print("\nGenerowanie wykresów porównawczych...")
 
-    # 2. Dokładność (R²) od batch size
-    plot_comparison(
-        batches, cpu_batch_acc, gpu_batch_acc,
-        xlabel='Batch size', ylabel='Dokładność (R²)',
-        title='Porównanie dokładności (CPU vs GPU) - batch size',
-        filename='compare_accuracy_batch_#2.png'
-    )
+    # # 1. Czas trenowania od batch size
+    # plot_comparison(
+    #     batches, cpu_batch_times, gpu_batch_times,
+    #     xlabel='Batch size', ylabel='Czas trenowania [s]',
+    #     title='Porównanie czasu trenowania (CPU vs GPU) - batch size',
+    #     filename='compare_time_batch_#2.png'
+    # )
 
-    # 3. Czas trenowania od noise
-    plot_comparison(
-        noise_levels, cpu_noise_times, gpu_noise_times,
-        xlabel='Poziom szumu', ylabel='Czas trenowania [s]',
-        title='Porównanie czasu trenowania (CPU vs GPU) - noise',
-        filename='compare_time_noise_#2.png'
-    )
+    # # 2. Dokładność (R²) od batch size
+    # plot_comparison(
+    #     batches, cpu_batch_acc, gpu_batch_acc,
+    #     xlabel='Batch size', ylabel='Dokładność (R²)',
+    #     title='Porównanie dokładności (CPU vs GPU) - batch size',
+    #     filename='compare_accuracy_batch_#2.png'
+    # )
 
-    # 4. Dokładność (R²) od noise
-    plot_comparison(
-        noise_levels, cpu_noise_acc, gpu_noise_acc,
-        xlabel='Poziom szumu', ylabel='Dokładność (R²)',
-        title='Porównanie dokładności (CPU vs GPU) - noise',
-        filename='compare_accuracy_noise_#2.png'
-    )
+    # # 3. Czas trenowania od noise
+    # plot_comparison(
+    #     noise_levels, cpu_noise_times, gpu_noise_times,
+    #     xlabel='Poziom szumu', ylabel='Czas trenowania [s]',
+    #     title='Porównanie czasu trenowania (CPU vs GPU) - noise',
+    #     filename='compare_time_noise_#2.png'
+    # )
 
-    print("\n✅ Wykresy zapisane w folderze reports/plots/")
-    print("Pliki:")
-    print(" - compare_time_batch.png")
-    print(" - compare_accuracy_batch.png")
-    print(" - compare_time_noise.png")
-    print(" - compare_accuracy_noise.png")
+    # # 4. Dokładność (R²) od noise
+    # plot_comparison(
+    #     noise_levels, cpu_noise_acc, gpu_noise_acc,
+    #     xlabel='Poziom szumu', ylabel='Dokładność (R²)',
+    #     title='Porównanie dokładności (CPU vs GPU) - noise',
+    #     filename='compare_accuracy_noise_#2.png'
+    # )
+
+    # print("\n✅ Wykresy zapisane w folderze reports/plots/")
+    # print("Pliki:")
+    # print(" - compare_time_batch.png")
+    # print(" - compare_accuracy_batch.png")
+    # print(" - compare_time_noise.png")
+    # print(" - compare_accuracy_noise.png")
+
+    
+
+    for noise in noise_levels:
+        plot_comparison_multi(
+            batches,
+            {
+                "CPU-many_layers": cpu_results["many_layers"][noise],
+                "CPU-many_neurons": cpu_results["many_neurons"][noise],
+                "GPU-many_layers": gpu_results["many_layers"][noise],
+                "GPU-many_neurons": gpu_results["many_neurons"][noise],
+            },
+            xlabel="Batch size",
+            title_prefix=f"Porównanie dla noise={noise}",
+            filename_prefix=f"compare_noise_{noise}"
+        )
+
+        plot_individual_results(
+            batches,
+            {
+                "CPU-many_layers": cpu_results["many_layers"][noise],
+                "CPU-many_neurons": cpu_results["many_neurons"][noise],
+                "GPU-many_layers": gpu_results["many_layers"][noise],
+                "GPU-many_neurons": gpu_results["many_neurons"][noise],
+            },
+            xlabel="Batch size",
+            title_prefix=f"Indywidualne wykresy dla noise={noise}",
+            filename_prefix=f"individual_noise_{noise}"
+        )
+
+    # test_series_by_noise_combined(noise_levels, batches)
+
+

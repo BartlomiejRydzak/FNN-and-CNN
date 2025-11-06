@@ -5,7 +5,7 @@ import numpy as np
 from keras.preprocessing import image
 import matplotlib.pyplot as plt
 import time
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import confusion_matrix, classification_report, precision_score
 import seaborn as sns
 import os
 import random as rndm
@@ -220,17 +220,22 @@ def test_batch_performance(batch_size, device_name="CPU"):
     )
 
     loss, accuracy = my_cnn.model.evaluate(test_set, verbose=0)
+    y_pred_prob = my_cnn.model.predict(test_set)
+    y_pred = (y_pred_prob > 0.5).astype(int).flatten()
+    y_true = test_set.classes
+    precision = precision_score(y_true, y_pred)
 
     print(device_name)
     print(f"Batch size: {batch_size}")
     print(f"Time taken: {time_taken:.2f} s")
     print(f"Loss: {loss:.4f}")
     print(f"Accuracy: {accuracy:.4f}")
+    print(f"Precision: {precision:.4f}")
 
     my_cnn.evaluate_classification(batch_size=batch_size, device_name=device_name)
 
 
-    return time_taken, accuracy
+    return time_taken, accuracy, precision
 
 def plot_comparison(parameters, cpu_values, gpu_values, y_label='', title='', name='comparison'):
     plt.figure(figsize=(10, 5))
@@ -278,7 +283,7 @@ if __name__ == "__main__":
     for device in tf.config.list_physical_devices():
         print(device)
 
-    batches = [8, 16, 32, 64]
+    batches = [8, 16, 32, 48, 64, 128, 256]
 
     # --- TEST NA GPU ---
     gpus = tf.config.list_physical_devices('GPU')
@@ -286,14 +291,16 @@ if __name__ == "__main__":
         print("\n=== Test na GPU ===")
         batch_times_gpu = []
         batch_acc_gpu = []
+        batch_prec_gpu = []
 
         with tf.device('/GPU:0'):
             print("Using GPU for training...")
             for b in batches:
                 print(f"\nBatch size: {b}")
-                t, acc = test_batch_performance(b, device_name="GPU")
+                t, acc, prec = test_batch_performance(b, device_name="GPU")
                 batch_times_gpu.append(t)
                 batch_acc_gpu.append(acc)
+                batch_prec_gpu.append(prec)
 
         plot_speedup(
             batches, batch_times_gpu,
@@ -309,6 +316,13 @@ if __name__ == "__main__":
             title='Dokładność CNN na GPU',
             name='CNN_GPU_accuracy'
         )
+        plot_speedup(
+            batches, batch_prec_gpu,
+            parameter_name='Batch size',
+            y_label='Precision',
+            title='Precyzja CNN na GPU',
+            name='CNN_GPU_precision'
+        )
     else:
         print("⚠️ Brak GPU — pomijam test GPU.")
 
@@ -316,14 +330,16 @@ if __name__ == "__main__":
     print("\n=== Test na CPU ===")
     batch_times_cpu = []
     batch_acc_cpu = []
+    batch_prec_cpu = []
 
     with tf.device('/CPU:0'):
         print("Using CPU for training...")
         for b in batches:
             print(f"\nBatch size: {b}")
-            t, acc = test_batch_performance(b, device_name="CPU")
+            t, acc, prec = test_batch_performance(b, device_name="CPU")
             batch_times_cpu.append(t)
             batch_acc_cpu.append(acc)
+            batch_prec_cpu.append(prec)
 
     plot_speedup(
         batches, batch_times_cpu,
@@ -339,6 +355,13 @@ if __name__ == "__main__":
         title='Dokładność CNN na CPU',
         name='CNN_CPU_accuracy'
     )
+    plot_speedup(
+        batches, batch_prec_cpu,
+        parameter_name='Batch size',
+        y_label='Precision',
+        title='Precyzja CNN na CPU',
+        name='CNN_CPU_precision'
+    )
 
     plot_comparison(batches, batch_times_cpu, batch_times_gpu,
                 y_label='Czas wykonania (s)',
@@ -351,6 +374,14 @@ if __name__ == "__main__":
         title='Porównanie dokładności CNN: CPU vs GPU',
         name='CNN_accuracy'
     )
+
+    plot_comparison(
+        batches, batch_prec_cpu, batch_prec_gpu,
+        y_label='Precision',
+        title='Porównanie precyzji CNN: CPU vs GPU',
+        name='CNN_precision'
+    )
+
 
 
 
