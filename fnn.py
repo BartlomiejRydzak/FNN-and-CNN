@@ -508,9 +508,9 @@ def test_architectures(batches, noises, device_name="CPU"):
     """
 
     # zmiana small i large na many_layers i many_neurons
-    results = {"many_layers": {}, "many_neurons": {}}
+    results = {"many_neurons": {}, "many_layers": {}}
 
-    for arch in ["many_layers", "many_neurons"]:
+    for arch in ["many_neurons", "many_layers"]:
         for noise in noises:
             r2_list = []
             time_list = []
@@ -833,8 +833,8 @@ if __name__ == "__main__":
     # =============================
     # KONFIGURACJA PARAMETRÓW
     # =============================
-    batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
-    noise_levels = [1.0, 6.0]
+    batches = [16, 32, 64, 128, 256, 512, 1024]
+    noise_levels = [1.0]
     # batches = [1024]
     # noise_levels = [5.0]
     # noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
@@ -842,6 +842,27 @@ if __name__ == "__main__":
 
     # batches = [128]
     # noise_levels = [3.0]
+
+    my_fnn = fnn()
+    my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
+    my_fnn.define_function()
+
+    import numpy as np
+
+    # sample 10 random indices
+    idx = np.random.choice(len(my_fnn.x), size=10, replace=False)
+
+    # get random x values
+    random_x = my_fnn.x[idx]
+
+    # get the corresponding y values
+    random_y = my_fnn.y[idx]
+
+    print(random_x)
+    print(random_y)
+
+
+
 
     print("Wersja TensorFlow:", tf.__version__)
     print("Dostępne urządzenia:")
@@ -902,8 +923,8 @@ if __name__ == "__main__":
         gpu_noise_times = [None] * len(noise_levels)
         gpu_noise_acc = [None] * len(noise_levels)
         gpu_results = {
-            "many_layers": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
             "many_neurons": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
+            "many_layers": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
         }
 
 
@@ -957,10 +978,10 @@ if __name__ == "__main__":
         plot_comparison_multi(
             batches,
             {
-                "CPU-many_layers": cpu_results["many_layers"][noise],
                 "CPU-many_neurons": cpu_results["many_neurons"][noise],
-                "GPU-many_layers": gpu_results["many_layers"][noise],
+                "CPU-many_layers": cpu_results["many_layers"][noise],
                 "GPU-many_neurons": gpu_results["many_neurons"][noise],
+                "GPU-many_layers": gpu_results["many_layers"][noise],
             },
             xlabel="Batch size",
             title_prefix=f"Porównanie dla noise={noise}",
@@ -970,10 +991,10 @@ if __name__ == "__main__":
         plot_individual_results(
             batches,
             {
-                "CPU-many_layers": cpu_results["many_layers"][noise],
                 "CPU-many_neurons": cpu_results["many_neurons"][noise],
-                "GPU-many_layers": gpu_results["many_layers"][noise],
+                "CPU-many_layers": cpu_results["many_layers"][noise],
                 "GPU-many_neurons": gpu_results["many_neurons"][noise],
+                "GPU-many_layers": gpu_results["many_layers"][noise],
             },
             xlabel="Batch size",
             title_prefix=f"Indywidualne wykresy dla noise={noise}",
