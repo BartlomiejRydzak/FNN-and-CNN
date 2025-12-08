@@ -77,71 +77,75 @@ class fnn:
     # zmiana batch_size na 128 z 32
     def create_model(self, epochs=100, batch_size=32,  architecture="small"):
         # pierwsza wersja
-        if architecture == "small":
-            self.model = tf.keras.Sequential([
-                tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
-                tf.keras.layers.Dense(80, activation='relu'),
-                tf.keras.layers.Dense(20, activation='relu'),
-                tf.keras.layers.Dense(20, activation='relu'),
-                tf.keras.layers.Dense(1)
-            ])
+        strategy = tf.distribute.MultiWorkerMirroredStrategy()
 
-        # wersja porownawcza
-        elif architecture == "large":
-            self.model = tf.keras.Sequential([
-                tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
-                tf.keras.layers.Dense(400, activation='relu'),
-                tf.keras.layers.Dense(100, activation='relu'),
-                tf.keras.layers.Dense(20, activation='relu'),
-                tf.keras.layers.Dense(1)
-            ])
-        elif architecture == "many_layers":
-            self.model = tf.keras.Sequential([
-                tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
-                tf.keras.layers.Dense(800, activation='relu'),
-                tf.keras.layers.Dense(600, activation='relu'),
-                tf.keras.layers.Dense(500, activation='relu'),
-                tf.keras.layers.Dense(400, activation='relu'),
-                tf.keras.layers.Dense(300, activation='relu'),
-                tf.keras.layers.Dense(200, activation='relu'),
-                tf.keras.layers.Dense(100, activation='relu'),
-                tf.keras.layers.Dense(50, activation='relu'),
-                tf.keras.layers.Dense(1)
-            ])
-        # 100_000 neuronow -> brak pamieci ram na pomieszczenie ich
-        elif architecture == "many_neurons":
-            self.model = tf.keras.Sequential([
-                # bardzo dlugi czas wykonywania
-                tf.keras.layers.Dense(10_000, activation='relu', input_shape=(1,)),
-                tf.keras.layers.Dense(5_000, activation='relu'),
-                tf.keras.layers.Dense(1000, activation='relu'),
-                tf.keras.layers.Dense(100, activation='relu'),
-                tf.keras.layers.Dense(50, activation='relu'),
-                tf.keras.layers.Dense(1)
-            ])
-        else:
-            raise ValueError(f"Nieznany typ architektury: {architecture}")
+        with strategy.scope():
+            if architecture == "small":
+                
+                    self.model = tf.keras.Sequential([
+                        tf.keras.layers.Dense(80, activation='relu', input_shape=(1,)),
+                        tf.keras.layers.Dense(80, activation='relu'),
+                        tf.keras.layers.Dense(20, activation='relu'),
+                        tf.keras.layers.Dense(20, activation='relu'),
+                        tf.keras.layers.Dense(1)
+                    ])
 
-        self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+            # wersja porownawcza
+            elif architecture == "large":
+                self.model = tf.keras.Sequential([
+                    tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
+                    tf.keras.layers.Dense(400, activation='relu'),
+                    tf.keras.layers.Dense(100, activation='relu'),
+                    tf.keras.layers.Dense(20, activation='relu'),
+                    tf.keras.layers.Dense(1)
+                ])
+            elif architecture == "large":
+                self.model = tf.keras.Sequential([
+                    tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
+                    tf.keras.layers.Dense(800, activation='relu'),
+                    tf.keras.layers.Dense(600, activation='relu'),
+                    tf.keras.layers.Dense(500, activation='relu'),
+                    tf.keras.layers.Dense(400, activation='relu'),
+                    tf.keras.layers.Dense(300, activation='relu'),
+                    tf.keras.layers.Dense(200, activation='relu'),
+                    tf.keras.layers.Dense(100, activation='relu'),
+                    tf.keras.layers.Dense(50, activation='relu'),
+                    tf.keras.layers.Dense(1)
+                ])
+            # 100_000 neuronow -> brak pamieci ram na pomieszczenie ich
+            elif architecture == "small":
+                self.model = tf.keras.Sequential([
+                    # bardzo dlugi czas wykonywania
+                    tf.keras.layers.Dense(10_000, activation='relu', input_shape=(1,)),
+                    tf.keras.layers.Dense(5_000, activation='relu'),
+                    tf.keras.layers.Dense(1000, activation='relu'),
+                    tf.keras.layers.Dense(100, activation='relu'),
+                    tf.keras.layers.Dense(50, activation='relu'),
+                    tf.keras.layers.Dense(1)
+                ])
+            else:
+                raise ValueError(f"Nieznany typ architektury: {architecture}")
 
-
-        # log_dir = "./logs"
-        # tensorboard_callback = tf.keras.callbacks.TensorBoard(
-        #     log_dir=log_dir,
-        #     histogram_freq=1,
-        #     profile_batch='10,30'
-        # )
-        
-        # self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0, callbacks=[tensorboard_callback])
-        self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0)
+            self.model.compile(optimizer='adam', loss='mse', metrics=['mae'])
 
 
-        self.loss, self.mae = self.model.evaluate(self.X_test, self.y_test, verbose=0)
-        # print(f"Test MAE: {self.mae:.4f}")
+            # log_dir = "./logs"
+            # tensorboard_callback = tf.keras.callbacks.TensorBoard(
+            #     log_dir=log_dir,
+            #     histogram_freq=1,
+            #     profile_batch='10,30'
+            # )
+            
+            # self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0, callbacks=[tensorboard_callback])
+            self.history = self.model.fit(self.X_train, self.y_train, epochs=epochs, batch_size=batch_size, validation_split=0.1, verbose=0)
 
-        self.X_all_scaled = self.x_scaler.transform(self.X)
-        self.y_pred = self.model.predict(self.X_all_scaled)
-        # self.y_pred = self.y_scaler.inverse_transform(self.y_pred.reshape(-1, 1))
+
+            self.loss, self.mae = self.model.evaluate(self.X_test, self.y_test, verbose=0)
+            # print(f"Test MAE: {self.mae:.4f}")
+
+            self.X_all_scaled = self.x_scaler.transform(self.X)
+            self.y_pred = self.model.predict(self.X_all_scaled)
+            # self.y_pred = self.y_scaler.inverse_transform(self.y_pred.reshape(-1, 1))
     
     def show_stats(self):
         mae = mean_absolute_error(self.y_test, self.model.predict(self.X_test))
@@ -444,7 +448,7 @@ def test_series_by_noise(noise_values, batch_sizes, device_name="CPU"):
     Dla każdej wartości noise testuje różne batch_size
     i rysuje osobne wykresy dla każdej stałej wartości noise.
     """
-    os.makedirs(f"reports/compare/{device_name}", exist_ok=True)
+    os.makedirs(f"reports/compare2/{device_name}", exist_ok=True)
 
     for noise in noise_values:
         times = []
@@ -479,7 +483,7 @@ def test_series_by_noise(noise_values, batch_sizes, device_name="CPU"):
         plt.ylabel('Czas trenowania [s]')
         plt.title(f'{device_name} — Czas trenowania vs batch size (noise={noise})')
         plt.grid(True)
-        plt.savefig(f'reports/compare/{device_name}/time_vs_batch_noise_{noise}.png',
+        plt.savefig(f'reports/compare2/{device_name}/time_vs_batch_noise_{noise}.png',
                     dpi=300, bbox_inches='tight')
         plt.close()
 
@@ -490,11 +494,11 @@ def test_series_by_noise(noise_values, batch_sizes, device_name="CPU"):
         plt.ylabel('Dokładność (R²)')
         plt.title(f'{device_name} — Dokładność vs batch size (noise={noise})')
         plt.grid(True)
-        plt.savefig(f'reports/compare/{device_name}/accuracy_vs_batch_noise_{noise}.png',
+        plt.savefig(f'reports/compare2/{device_name}/accuracy_vs_batch_noise_{noise}.png',
                     dpi=300, bbox_inches='tight')
         plt.close()
 
-        print(f"📈 Zapisano wykresy dla noise={noise} w reports/compare/")
+        print(f"📈 Zapisano wykresy dla noise={noise} w reports/compare2/")
 
 
 def test_architectures(batches, noises, device_name="CPU"):
@@ -507,10 +511,10 @@ def test_architectures(batches, noises, device_name="CPU"):
     }
     """
 
-    # zmiana small i large na many_layers i many_neurons
-    results = {"many_neurons": {}, "many_layers": {}}
+    # zmiana small i large na large i small
+    results = {"small": {}, "large": {}}
 
-    for arch in ["many_neurons", "many_layers"]:
+    for arch in ["small", "large"]:
         for noise in noises:
             r2_list = []
             time_list = []
@@ -549,30 +553,35 @@ def plot_comparison_multi(x_values, results_dict, xlabel="Batch size", title_pre
         'GPU-large': {...}
     }
     """
-    os.makedirs("reports/architectures2", exist_ok=True)
+    os.makedirs("reports/log", exist_ok=True)
+
+    markers = ['o', 's', '^', 'D', '*', 'v', '<', '>']  # different markers for curves
 
     # --- Wykres dokładności ---
     plt.figure(figsize=(10, 6))
-    for label, data in results_dict.items():
-        plt.plot(x_values, data['r2'], marker='o', linewidth=2, label=label)
+    for i, (label, data) in enumerate(results_dict.items()):
+        plt.plot(x_values, data['r2'], marker=markers[i % len(markers)], linewidth=2, label=label)
     plt.xlabel(xlabel)
     plt.ylabel("Dokładność (R²)")
     plt.title(f"{title_prefix} - Dokładność")
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"reports/architectures2/{filename_prefix}_accuracy.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"reports/log/{filename_prefix}_accuracy.png", dpi=300, bbox_inches='tight')
     plt.close()
 
     # --- Wykres czasu ---
     plt.figure(figsize=(10, 6))
-    for label, data in results_dict.items():
-        plt.plot(x_values, data['time'], marker='s', linewidth=2, label=label)
+    for i, (label, data) in enumerate(results_dict.items()):
+        plt.plot(x_values, data['time'], marker=markers[i % len(markers)], linewidth=2, label=label)
+
+    plt.xscale('log')
+    # plt.yscale('log')
     plt.xlabel(xlabel)
     plt.ylabel("Czas trenowania [s]")
     plt.title(f"{title_prefix} - Czas trenowania")
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"reports/architectures2/{filename_prefix}_time.png", dpi=300, bbox_inches='tight')
+    plt.savefig(f"reports/log/{filename_prefix}_time.png", dpi=300, bbox_inches='tight')
     plt.close()
 
 def plot_individual_results(x_values, results_dict, xlabel="Batch size", title_prefix="", filename_prefix=""):
@@ -585,7 +594,7 @@ def plot_individual_results(x_values, results_dict, xlabel="Batch size", title_p
         'GPU-large': {...}
     }
     """
-    os.makedirs("reports/architectures2/individual", exist_ok=True)
+    os.makedirs("reports/markers/individual", exist_ok=True)
 
     for label, data in results_dict.items():
         # --- Dokładność ---
@@ -833,8 +842,8 @@ if __name__ == "__main__":
     # =============================
     # KONFIGURACJA PARAMETRÓW
     # =============================
-    batches = [16, 32, 64, 128, 256, 512, 1024]
-    noise_levels = [1.0]
+    batches = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+    noise_levels = [0.5]
     # batches = [1024]
     # noise_levels = [5.0]
     # noise_levels = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
@@ -847,45 +856,45 @@ if __name__ == "__main__":
     my_fnn.set_parameters(-40, 40, 0.05, 5, 4, 0.1, 1, 2, 3, 4)
     my_fnn.define_function()
 
-    import numpy as np
+    # import numpy as np
 
-    # sample 10 random indices
-    idx = np.random.choice(len(my_fnn.x), size=10, replace=False)
+    # # sample 10 random indices
+    # idx = np.random.choice(len(my_fnn.x), size=10, replace=False)
 
-    # get random x values
-    random_x = my_fnn.x[idx]
+    # # get random x values
+    # random_x = my_fnn.x[idx]
 
-    # get the corresponding y values
-    random_y = my_fnn.y[idx]
+    # # get the corresponding y values
+    # random_y = my_fnn.y[idx]
 
-    print(random_x)
-    print(random_y)
-
-
+    # print(random_x)
+    # print(random_y)
 
 
-    print("Wersja TensorFlow:", tf.__version__)
-    print("Dostępne urządzenia:")
-    for d in tf.config.list_physical_devices():
-        print(" -", d)
 
-    gpus = tf.config.list_physical_devices('GPU')
-    has_gpu = len(gpus) > 0
-    if has_gpu:
-        print(f"GPU wykryte: {tf.test.gpu_device_name()}")
-    else:
-        print("⚠️ Brak GPU – testy GPU zostaną pominięte.")
+
+    # print("Wersja TensorFlow:", tf.__version__)
+    # print("Dostępne urządzenia:")
+    # for d in tf.config.list_physical_devices():
+    #     print(" -", d)
+
+    # gpus = tf.config.list_physical_devices('GPU')
+    # has_gpu = len(gpus) > 0
+    # if has_gpu:
+    #     print(f"GPU wykryte: {tf.test.gpu_device_name()}")
+    # else:
+    #     print("⚠️ Brak GPU – testy GPU zostaną pominięte.")
 
     # =============================
     # TESTY CPU
     # =============================
-    cpu_batch_times, cpu_batch_acc = [], []
-    cpu_noise_times, cpu_noise_acc = [], []
+    # cpu_batch_times, cpu_batch_acc = [], []
+    # cpu_noise_times, cpu_noise_acc = [], []
 
     # =============================
     # PORÓWNANIE ARCHITEKTUR
     # =============================
-    cpu_results, gpu_results = None, None
+    # cpu_results, gpu_results = None, None
 
     with tf.device('/CPU:0'):
         # for b in batches:
@@ -894,19 +903,19 @@ if __name__ == "__main__":
         # for n in noise_levels:
         #     cpu_noise_times.append(test_noise_time(n, device_name="CPU"))
         #     cpu_noise_acc.append(test_noise_accuracy(n, device_name="CPU"))
-        # test_series_by_noise(noise_levels, batches, 'CPU')
-        cpu_results = test_architectures(batches, noises=noise_levels, device_name="CPU")
+        test_series_by_noise(noise_levels, batches, 'CPU')
+        # cpu_results = test_architectures(batches, noises=noise_levels, device_name="CPU")
         # pass
 
     # =============================
     # TESTY GPU (jeśli dostępne)
     # =============================
-    gpu_batch_times, gpu_batch_acc = [], []
-    gpu_noise_times, gpu_noise_acc = [], []
+    # gpu_batch_times, gpu_batch_acc = [], []
+    # gpu_noise_times, gpu_noise_acc = [], []
 
 
-    if has_gpu:
-        with tf.device('/GPU:0'):
+    # if has_gpu:
+    #     with tf.device('/GPU:0'):
             # for b in batches:
             #     gpu_batch_times.append(test_batch_time(b, device_name="GPU"))
             #     gpu_batch_acc.append(test_batch_accuracy(b, device_name="GPU"))
@@ -914,18 +923,18 @@ if __name__ == "__main__":
             #     gpu_noise_times.append(test_noise_time(n, device_name="GPU"))
             #     gpu_noise_acc.append(test_noise_accuracy(n, device_name="GPU"))
             # test_series_by_noise(noise_levels, batches, 'GPU')
-            gpu_results = test_architectures(batches, noises=noise_levels, device_name="GPU")
+            # gpu_results = test_architectures(batches, noises=noise_levels, device_name="GPU")
             # pass
 
-    else:
-        gpu_batch_times = [None] * len(batches)
-        gpu_batch_acc = [None] * len(batches)
-        gpu_noise_times = [None] * len(noise_levels)
-        gpu_noise_acc = [None] * len(noise_levels)
-        gpu_results = {
-            "many_neurons": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
-            "many_layers": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
-        }
+    # else:
+    #     gpu_batch_times = [None] * len(batches)
+    #     gpu_batch_acc = [None] * len(batches)
+    #     gpu_noise_times = [None] * len(noise_levels)
+    #     gpu_noise_acc = [None] * len(noise_levels)
+    #     gpu_results = {
+    #         "small": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
+    #         "large": {n: {"r2": [None]*len(batches), "time": [None]*len(batches)} for n in noise_levels},
+    #     }
 
 
     # # =============================
@@ -971,36 +980,36 @@ if __name__ == "__main__":
     # print(" - compare_accuracy_batch.png")
     # print(" - compare_time_noise.png")
     # print(" - compare_accuracy_noise.png")
-
     
 
-    for noise in noise_levels:
-        plot_comparison_multi(
-            batches,
-            {
-                "CPU-many_neurons": cpu_results["many_neurons"][noise],
-                "CPU-many_layers": cpu_results["many_layers"][noise],
-                "GPU-many_neurons": gpu_results["many_neurons"][noise],
-                "GPU-many_layers": gpu_results["many_layers"][noise],
-            },
-            xlabel="Batch size",
-            title_prefix=f"Porównanie dla noise={noise}",
-            filename_prefix=f"compare_noise_{noise}"
-        )
+    # for noise in noise_levels:
+    #     plot_comparison_multi(
+    #         batches,
+    #         {
+    #             "CPU-small": cpu_results["small"][noise],
+    #             "CPU-large": cpu_results["large"][noise],
+    #             "GPU-small": gpu_results["small"][noise],
+    #             "GPU-large": gpu_results["large"][noise],
+    #         },
+    #         xlabel="Batch size",
+    #         title_prefix=f"Porównanie dla noise={noise}",
+    #         filename_prefix=f"compare_noise_{noise}"
+    #     )
 
-        plot_individual_results(
-            batches,
-            {
-                "CPU-many_neurons": cpu_results["many_neurons"][noise],
-                "CPU-many_layers": cpu_results["many_layers"][noise],
-                "GPU-many_neurons": gpu_results["many_neurons"][noise],
-                "GPU-many_layers": gpu_results["many_layers"][noise],
-            },
-            xlabel="Batch size",
-            title_prefix=f"Indywidualne wykresy dla noise={noise}",
-            filename_prefix=f"individual_noise_{noise}"
-        )
+        # plot_individual_results(
+        #     batches,
+        #     {
+        #         "CPU-small": cpu_results["small"][noise],
+        #         "CPU-large": cpu_results["large"][noise],
+        #         "GPU-small": gpu_results["small"][noise],
+        #         "GPU-large": gpu_results["large"][noise],
+        #     },
+        #     xlabel="Batch size",
+        #     title_prefix=f"Indywidualne wykresy dla noise={noise}",
+        #     filename_prefix=f"individual_noise_{noise}"
+        # )
 
     # test_series_by_noise_combined(noise_levels, batches)
+
 
 
