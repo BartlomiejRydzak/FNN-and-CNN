@@ -152,13 +152,10 @@ class fnn:
                 #     tf.keras.layers.Dense(1)
                 # ])
                 self.model = tf.keras.Sequential([
+                    # bardzo dlugi czas wykonywania
                     tf.keras.layers.Dense(1000, activation='relu', input_shape=(1,)),
-                    tf.keras.layers.Dense(800, activation='relu'),
-                    tf.keras.layers.Dense(600, activation='relu'),
-                    tf.keras.layers.Dense(500, activation='relu'),
-                    tf.keras.layers.Dense(400, activation='relu'),
-                    tf.keras.layers.Dense(300, activation='relu'),
-                    tf.keras.layers.Dense(200, activation='relu'),
+                    # tf.keras.layers.Dense(5_000, activation='relu'),
+                    # tf.keras.layers.Dense(1000, activation='relu'),
                     tf.keras.layers.Dense(100, activation='relu'),
                     tf.keras.layers.Dense(50, activation='relu'),
                     tf.keras.layers.Dense(1)
@@ -270,7 +267,7 @@ def test_series_by_noise(noise_values, batch_sizes, device_name="CPU"):
 
 
 if __name__ == "__main__":
-    batches = [2, 4, 8, 16, 32, 64, 128, 256]
+    batches = [256]
     noise_levels = [0.5]
 
     my_fnn = fnn()
